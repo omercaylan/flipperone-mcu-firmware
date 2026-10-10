@@ -95,9 +95,11 @@ static void header_update_battery_state(Scene* scene) {
     View* view = scene_get_view(scene);
 
     uint8_t battery_soc = 0;
+#ifndef FW_HEADLESS
     Power* power = furi_record_open(RECORD_POWER);
     power_bq28z620_get_relative_state_of_charge(power, &battery_soc);
     furi_record_close(RECORD_POWER);
+#endif
 
     if(battery_soc > 100) battery_soc = 100;
 
@@ -106,6 +108,9 @@ static void header_update_battery_state(Scene* scene) {
         HeaderViewModel * model,
         {
             furi_string_printf(model->charge_text, "%u%%", battery_soc);
+#ifdef FW_HEADLESS
+            furi_string_set(model->charge_text, "USB");
+#endif
             model->charge_indicator_width = (float)battery_soc / 100.f;
         },
         true);

@@ -308,9 +308,11 @@ void desktop_send_scene_event(Desktop* desktop, uint32_t event, void* data) {
     furi_check(furi_message_queue_put(desktop->scene_event_message_queue, &message, 0) == FuriStatusOk);
 }
 
+#ifndef FW_HEADLESS
 bool furi_crash_handler(bool debug) {
     return false; // Always false for this development stage
 }
+#endif
 
 static bool desktop_start_app_by_id(Desktop* desktop, const char* appid) {
     furi_assert(appid);
@@ -597,7 +599,12 @@ bool desktop_unregister_app(const char* appid) {
 }
 
 void desktop_power_off(void) {
+#ifdef FW_HEADLESS
+    // USB-powered development board has no Flipper power controller.
+    return;
+#else
     Power* power_off = furi_record_open(RECORD_POWER);
     power_bq2579x_set_power_switch(power_off, Bq2579xPowerShipMode);
     furi_record_close(RECORD_POWER);
+#endif
 }

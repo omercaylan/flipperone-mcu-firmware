@@ -41,13 +41,19 @@ set(sdkVersion 2.3.1)
 set(toolchainVersion 14_2_Rel1)
 set(picotoolVersion 2.3.1)
 set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
-if (EXISTS ${picoVscode})
+if (EXISTS ${picoVscode} AND NOT DEFINED PICO_SDK_PATH)
     include(${picoVscode})
 endif()
 # ====================================================================================
 # TODO: custom board with RP2350_B_
 set(PICO_BOARD_HEADER_DIRS ${CMAKE_CURRENT_LIST_DIR}/targets/ CACHE STRING "Board header directories" FORCE)
-set(PICO_BOARD "board_mcu_2350" CACHE STRING "Board type" FORCE)
+if(FW_TARGET STREQUAL "f3")
+    set(PICO_BOARD "pico2" CACHE STRING "Board type" FORCE)
+    # Reserve the final 256 KiB of Pico 2's 4 MiB flash for NVM.
+    set(PICO_FLASH_SIZE_BYTES 3932160 CACHE STRING "Firmware flash region" FORCE)
+else()
+    set(PICO_BOARD "board_mcu_2350" CACHE STRING "Board type" FORCE)
+endif()
 set(TINYUSB_OPT_OS OPT_OS_FREERTOS CACHE STRING "TinyUSB OS option")
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
@@ -87,6 +93,7 @@ add_executable(${PROJECT_NAME}
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE 
+    $<$<STREQUAL:${FW_TARGET},f3>:FW_HEADLESS=1>
     PICO_DEFAULT_UART_TX_PIN=0
     PICO_DEFAULT_UART_RX_PIN=1
     PICO_DEFAULT_UART_BAUD_RATE=230400
@@ -185,7 +192,7 @@ pico_add_extra_outputs(${PROJECT_NAME})
 
 # Build partition table .bin and .u2f
 pico_init_picotool()
-if(picotool_FOUND)
+if(picotool_FOUND AND NOT FW_TARGET STREQUAL "f3")
     add_custom_target(partition_table ALL
         COMMAND picotool partition create ${CMAKE_CURRENT_LIST_DIR}/targets/partition_table.json ${CMAKE_CURRENT_BINARY_DIR}/partition_table.bin
         COMMAND picotool partition create ${CMAKE_CURRENT_LIST_DIR}/targets/partition_table.json ${CMAKE_CURRENT_BINARY_DIR}/partition_table.uf2
@@ -194,7 +201,7 @@ if(picotool_FOUND)
         COMMENT "Building partition table"
     )
     add_dependencies(${PROJECT_NAME} partition_table)
-else()
+elseif(NOT FW_TARGET STREQUAL "f3")
     message(WARNING "picotool not found, partition table will not be built")
 endif()
 # The binary name is the same for every board, so say which one this is. A custom
