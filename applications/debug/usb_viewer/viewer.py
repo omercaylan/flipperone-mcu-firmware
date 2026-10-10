@@ -19,21 +19,21 @@ HERE = Path(__file__).resolve().parent
 
 def main():
     root = tk.Tk()
-    root.title('Flipper One — USB ekranı')
+    root.title('Flipper One — USB Display')
     root.configure(bg='#202024')
     root.geometry('814x590+100+80')
     root.resizable(False, False)
-    tk.Label(root, text='FLIPPER ONE  ·  Canlı USB ekranı', bg='#202024', fg='#ff963d',
+    tk.Label(root, text='FLIPPER ONE  ·  Live USB Display', bg='#202024', fg='#ff963d',
              font=('Segoe UI', 16, 'bold')).pack(pady=(12, 6))
-    screen = tk.Label(root, bg='white', text='Bağlanıyor…')
+    screen = tk.Label(root, bg='white', text='Connecting…')
     screen.pack(padx=20, pady=4)
-    status = tk.StringVar(value='Kart aranıyor…')
+    status = tk.StringVar(value='Looking for device…')
     tk.Label(root, textvariable=status, bg='#202024', fg='#dddddd').pack(pady=4)
     controls = tk.Frame(root, bg='#202024')
     controls.pack(pady=4)
-    tk.Label(root, text='Oklar: yön  ·  Enter: OK  ·  Esc: geri  ·  4: ayarlar  ·  Tab: testler',
+    tk.Label(root, text='Arrows: navigate  ·  Enter: OK  ·  Esc: back  ·  4: settings  ·  Tab: tests',
              bg='#202024', fg='#bbbbbb').pack()
-    tk.Label(root, text='USB geliştirme sürümü · Fiziksel donanım ve kalıcı ayarlar bağlı değil',
+    tk.Label(root, text='USB development build · Peripheral hardware and persistent settings unavailable',
              bg='#202024', fg='#999999').pack(pady=3)
     stop = threading.Event()
     frames = queue.Queue(maxsize=3)
@@ -43,15 +43,15 @@ def main():
     try:
         ports = [p for p in list_ports.comports() if (p.vid, p.pid) == (0x37c1, 0xf101)]
         if len(ports) != 1:
-            raise RuntimeError('Tek bir Flipper USB cihazı bulunamadı. Kartı bağla ve tekrar aç.')
+            raise RuntimeError('Expected exactly one Flipper USB device. Connect one device and reopen the viewer.')
         rpc._ensure_protos()
         port = rpc.open_serial(ports[0].device)
         if not rpc.enter_rpc_mode(port):
-            raise RuntimeError('Kart RPC moduna geçmedi. GUI firmware sürümünü kontrol et.')
+            raise RuntimeError('The device did not enter RPC mode. Check that the GUI firmware is installed.')
         rpc.send_start_virtual_display(port)
     except Exception as exc:
         if port: port.close()
-        messagebox.showerror('Bağlantı hatası', str(exc) + '\nPuTTY gibi diğer seri port uygulamalarını kapat.', parent=root)
+        messagebox.showerror('Connection error', str(exc) + '\nClose other serial-port applications such as PuTTY.', parent=root)
         root.destroy()
         return
 
@@ -59,7 +59,7 @@ def main():
         try:
             rpc.send_button(port, button, action)
         except Exception as exc:
-            status.set('Bağlantı hatası: ' + str(exc))
+            status.set('Connection error: ' + str(exc))
 
     def click(button):
         send(button, 'PRESS')
@@ -113,10 +113,10 @@ def main():
                 count += 1
                 if count == 1:
                     print('Live framebuffer displayed: 258x144', flush=True)
-                status.set(f"{ports[0].device} · {frame['width']}×{frame['height']} · Alınan kare: {count}")
+                status.set(f"{ports[0].device} · {frame['width']}×{frame['height']} · Frames received: {count}")
         except queue.Empty:
             pass
-        if stop.is_set(): status.set('Bağlantı kesildi. Pencereyi kapatıp yeniden aç.')
+        if stop.is_set(): status.set('Disconnected. Close and reopen the viewer.')
         root.after(40, refresh)
 
     def close():
